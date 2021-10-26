@@ -20,7 +20,7 @@ var rndr *renderer.Render
 var db *mgo.Database
 
 const (
-	hostName       string = "localhost:27017"
+	hostName       string = "localhost:5500"
 	dbName         string = "demo_todo"
 	collectionName string = "todo"
 	port           string = ":9000"
@@ -28,7 +28,7 @@ const (
 
 type (
 	todoModel struct {
-		ID        bson.ObjectId `bson:"_id, omitempty"`
+		ID        bson.ObjectId `bson:"_id,omitempty"`
 		Title     string        `bson:"title"`
 		Completed bool          `bson:"completed"`
 		CreatedAt time.Time     `bson:"createdAt"`
@@ -60,7 +60,7 @@ func main() {
 	r.Mount("/todo", todoHandler())
 
 	srv := &http.Server{
-		Addr:         port,
+		Addr:         ":9000",
 		Handler:      r,
 		ReadTimeout:  60 * time.Second,
 		WriteTimeout: 60 * time.Second,
@@ -179,7 +179,56 @@ func fetchTodo(w http.ResponseWriter, r *http.Request) {
 }
 
 func updateTodo(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimSpace(chi.URLParam(r, "id"))
 
+	if bson.IsObjectIdHex(id) {
+		if err1 := rndr.JSON(w, http.StatusBadRequest, renderer.M{
+			"error": "Invalid URL request",
+		}); err1 != nil {
+			checkerr(err1)
+			return
+		}
+		return
+	}
+
+	var t todo
+
+	if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
+		if err1 := rndr.JSON(w, http.StatusProcessing, err); err1 != nil {
+			checkerr(err1)
+		}
+		return
+	}
+
+	if t.Title == "" {
+		rndr.JSON(w, http.StatusProcessing, renderer.M{
+			"error": "The title cannot be empty",
+		})
+		return
+	}
+	tm := todoModel{
+		ID: bson.ObjectIdHex(id),
+		Title:     t.Title,
+		Completed: t.Completed,
+		CreatedAt: t.CreatedAt,
+	}
+
+	if err := db.C(collectionName).UpdateId(bson.ObjectIdHex(id), &tm);err!= nil{
+		if err1 := rndr.JSON(w, http.StatusProcessing, renderer.M{
+			"message": "Failed to update TODO",
+			"error":   err,
+		}); err1 != nil {
+			checkerr(err1)
+			return
+		}
+		return
+	}
+	if err := rndr.JSON(w, http.StatusOK, renderer.M{
+		"message":"TODO updated successfully.",
+	}); err != nil {
+		checkerr(err)
+		return
+	}
 }
 
 func deleteTodo(w http.ResponseWriter, r *http.Request) {
@@ -205,5 +254,7 @@ func deleteTodo(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-
+	rndr.JSON(w, http.StatusOK, renderer.M{
+		"message":"TODO deleted successfully.",
+	})
 }
