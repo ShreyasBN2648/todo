@@ -181,7 +181,7 @@ func fetchTodo(w http.ResponseWriter, r *http.Request) {
 func updateTodo(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimSpace(chi.URLParam(r, "id"))
 
-	if bson.IsObjectIdHex(id) {
+	if !bson.IsObjectIdHex(id) {
 		if err1 := rndr.JSON(w, http.StatusBadRequest, renderer.M{
 			"error": "Invalid URL request",
 		}); err1 != nil {
@@ -234,7 +234,7 @@ func updateTodo(w http.ResponseWriter, r *http.Request) {
 func deleteTodo(w http.ResponseWriter, r *http.Request) {
 	id := strings.TrimSpace(chi.URLParam(r, "id"))
 
-	if bson.IsObjectIdHex(id) {
+	if !bson.IsObjectIdHex(id) {
 		if err1 := rndr.JSON(w, http.StatusBadRequest, renderer.M{
 			"error": "Invalid URL request",
 		}); err1 != nil {
